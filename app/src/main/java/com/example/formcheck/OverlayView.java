@@ -17,7 +17,6 @@ public class OverlayView extends View {
 
     private static final float STROKE_WIDTH = 8f;
     private static final float CIRCLE_RADIUS = 10f;
-    private static final float TEXT_SIZE = 60f;
     private static final float ALPHA = 0.7f;
 
     private static final int GOOD_ANGLE = 90;
@@ -33,6 +32,20 @@ public class OverlayView extends View {
 
     private String exercise = Exercise.SQUATS;
 
+    public interface AngleListener {
+        void onAngle(double angle, String status);
+    }
+
+    private AngleListener listener;
+
+    public void setAngleListener(AngleListener listener) {
+        this.listener = listener;
+    }
+
+    public void setExercise(String exercise) {
+        this.exercise = exercise;
+    }
+
     public OverlayView(Context context, AttributeSet attrs) {
         super(context, attrs);
 
@@ -40,10 +53,6 @@ public class OverlayView extends View {
         paint.setColor(Color.RED);
         paint.setStrokeWidth(STROKE_WIDTH);
         paint.setStyle(Paint.Style.STROKE);
-    }
-
-    public void setExercise(String exercise) {
-        this.exercise = exercise;
     }
 
     public void setPose(Pose pose, int width, int height) {
@@ -60,7 +69,7 @@ public class OverlayView extends View {
         if (pose == null) return;
 
         drawBody(canvas);
-        calculateAngle(canvas);
+        calculateAngle();
     }
 
     private float scaleX(float x) {
@@ -129,7 +138,7 @@ public class OverlayView extends View {
         draw(PoseLandmark.RIGHT_KNEE, PoseLandmark.RIGHT_ANKLE, canvas);
     }
 
-    private void calculateAngle(Canvas canvas) {
+    private void calculateAngle() {
 
         PoseLandmark a = null;
         PoseLandmark b = null;
@@ -154,10 +163,9 @@ public class OverlayView extends View {
         else if (angle < LOW_ANGLE) status = "LOW";
         else status = "BAD";
 
-        paint.setColor(Color.GREEN);
-        paint.setTextSize(TEXT_SIZE);
-        canvas.drawText(exercise + " " + (int) angle, 50, 100, paint);
-        paint.setColor(Color.RED);
+        if (listener != null) {
+            listener.onAngle(angle, status);
+        }
     }
 
     private double getAngle(PoseLandmark a, PoseLandmark b, PoseLandmark c) {

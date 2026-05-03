@@ -1,18 +1,24 @@
 package com.example.formcheck;
 
 import android.Manifest;
+import android.content.ContentValues;
 import android.content.pm.PackageManager;
 import android.media.Image;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.*;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
+import androidx.camera.video.*;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.button.MaterialButton;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.pose.PoseDetection;
@@ -23,11 +29,19 @@ import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int CAMERA_REQUEST_CODE = 100;
+    private static final int REQUEST_CODE = 100;
 
     private PreviewView previewView;
     private OverlayView overlayView;
+
+    private TextView tvExercise, tvAngle, tvStatus;
+    private MaterialButton btnRecord;
+
     private PoseDetector poseDetector;
+
+    private VideoCapture<Recorder> videoCapture;
+    private Recording recording;
+    private boolean isRecording = false;
 
     private String exercise = Exercise.SQUATS;
 
@@ -39,11 +53,39 @@ public class MainActivity extends AppCompatActivity {
         previewView = findViewById(R.id.previewView);
         overlayView = findViewById(R.id.overlayView);
 
+        tvExercise = findViewById(R.id.tvExercise);
+        tvAngle = findViewById(R.id.tvAngle);
+        tvStatus = findViewById(R.id.tvStatus);
+        btnRecord = findViewById(R.id.btnRecord);
+
         exercise = getIntent().getStringExtra("exercise");
         if (exercise == null) exercise = Exercise.SQUATS;
 
-        setTitle(exercise);
+        tvExercise.setText(exercise);
         overlayView.setExercise(exercise);
+
+        overlayView.setAngleListener((angle, status) -> {
+            tvAngle.setText("Angle: " + (int) angle);
+            tvStatus.setText(status);
+
+            if (status.equals("GOOD")) {
+                tvStatus.setTextColor(0xFF00FF00);
+            } else if (status.equals("LOW")) {
+                tvStatus.setTextColor(0xFFFFFF00);
+            } else {
+                tvStatus.setTextColor(0xFFFF0000);
+            }
+        });
+
+        btnRecord.setOnClickListener(v -> {
+            if (isRecording) {
+                stopRecording();
+                btnRecord.setText("REC");
+            } else {
+                startRecording();
+                btnRecord.setText("STOP");
+            }
+        });
 
         PoseDetectorOptions options = new PoseDetectorOptions.Builder()
                 .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
@@ -51,18 +93,14 @@ public class MainActivity extends AppCompatActivity {
 
         poseDetector = PoseDetection.getClient(options);
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED) {
-
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{Manifest.permission.CAMERA},
-                    CAMERA_REQUEST_CODE
-            );
-
-        } else {
-            startCamera();
-        }
+        ActivityCompat.requestPermissions(
+                this,
+                new String[]{
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.RECORD_AUDIO
+                },
+                REQUEST_CODE
+        );
     }
 
     private void startCamera() {
@@ -86,10 +124,19 @@ public class MainActivity extends AppCompatActivity {
                         this::analyze
                 );
 
+                Recorder recorder = new Recorder.Builder().build();
+                videoCapture = VideoCapture.withOutput(recorder);
+
                 CameraSelector selector = CameraSelector.DEFAULT_BACK_CAMERA;
 
                 provider.unbindAll();
-                provider.bindToLifecycle(this, selector, preview, analysis);
+                provider.bindToLifecycle(
+                        this,
+                        selector,
+                        preview,
+                        analysis,
+                        videoCapture
+                );
 
             } catch (ExecutionException | InterruptedException e) {
                 e.printStackTrace();
@@ -119,6 +166,46 @@ public class MainActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> proxy.close());
     }
 
+    private void startRecording() {
+
+        if (videoCapture == null) return;
+
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME, "video_" + System.currentTimeMillis());
+        values.put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4");
+
+        MediaStoreOutputOptions options =
+                new MediaStoreOutputOptions.Builder(
+                        getContentResolver(),
+                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                )
+                        .setContentValues(values)
+                        .build();
+
+        recording = videoCapture.getOutput()
+                .prepareRecording(this, options)
+                .withAudioEnabled()
+                .start(ContextCompat.getMainExecutor(this), event -> {
+
+                    if (event instanceof VideoRecordEvent.Start) {
+                        isRecording = true;
+                        Toast.makeText(this, "Recording started", Toast.LENGTH_SHORT).show();
+                    }
+
+                    if (event instanceof VideoRecordEvent.Finalize) {
+                        isRecording = false;
+                        Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void stopRecording() {
+        if (recording != null) {
+            recording.stop();
+            recording = null;
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[] permissions,
@@ -126,7 +213,7 @@ public class MainActivity extends AppCompatActivity {
 
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        if (requestCode == CAMERA_REQUEST_CODE &&
+        if (requestCode == REQUEST_CODE &&
                 grantResults.length > 0 &&
                 grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 

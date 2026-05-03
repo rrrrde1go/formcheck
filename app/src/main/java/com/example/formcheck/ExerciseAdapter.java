@@ -27,7 +27,7 @@ public class ExerciseAdapter extends RecyclerView.Adapter<ExerciseAdapter.ViewHo
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
 
         View view = LayoutInflater.from(context)
-                .inflate(android.R.layout.simple_list_item_1, parent, false);
+                .inflate(R.layout.item_exercise, parent, false);
 
         return new ViewHolder(view);
     }
@@ -56,7 +56,7 @@ public class ExerciseAdapter extends RecyclerView.Adapter<ExerciseAdapter.ViewHo
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
-            text = itemView.findViewById(android.R.id.text1);
+            text = itemView.findViewById(R.id.tvName);
         }
     }
 }
