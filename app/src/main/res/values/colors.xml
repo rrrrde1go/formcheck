@@ -1,6 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="red">#FF0000</color>
+
+    <color name="bg_primary">#000000</color>
+    <color name="bg_card">#CC121212</color>
+    <color name="bg_card_dark">#1E1E1E</color>
+
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0BEC5</color>
+
+    <color name="status_good">#00C853</color>
+    <color name="status_low">#FFD600</color>
+    <color name="status_bad">#D50000</color>
+
+    <color name="accent_green">#43A047</color>
+    <color name="accent_red">#E53935</color>
+
 </resources>

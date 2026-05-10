@@ -1,6 +1,19 @@
 <resources>
+
     <string name="app_name">FormCheck</string>
-    <string name="recording">REC</string>
+
     <string name="exercise">Exercise</string>
-    <string name="choose_exercise">Choose Exercise</string>
+    <string name="angle">Angle: 0</string>
+    <string name="status">READY</string>
+
+    <string name="record">REC</string>
+
+    <string name="results">RESULTS</string>
+    <string name="reps">Reps: </string>
+    <string name="min_angle">Min angle: </string>
+    <string name="avg_angle">Avg angle: </string>
+    <string name="advice">Advice</string>
+
+    <string name="choose_exercise">Choose exercise</string>
+
 </resources>

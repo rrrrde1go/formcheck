@@ -2,6 +2,7 @@ package com.example.formcheck;
 
 import android.Manifest;
 import android.content.ContentValues;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.Image;
 import android.os.Bundle;
@@ -34,16 +35,27 @@ public class MainActivity extends AppCompatActivity {
     private PreviewView previewView;
     private OverlayView overlayView;
 
-    private TextView tvExercise, tvAngle, tvStatus;
+    private TextView tvExercise;
+    private TextView tvAngle;
+    private TextView tvStatus;
+
     private MaterialButton btnRecord;
 
     private PoseDetector poseDetector;
 
     private VideoCapture<Recorder> videoCapture;
     private Recording recording;
+
     private boolean isRecording = false;
 
     private String exercise = Exercise.SQUATS;
+
+    private int reps = 0;
+    private boolean wasDown = false;
+
+    private double minAngle = 180;
+    private double angleSum = 0;
+    private int angleFrames = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
         tvExercise = findViewById(R.id.tvExercise);
         tvAngle = findViewById(R.id.tvAngle);
         tvStatus = findViewById(R.id.tvStatus);
+
         btnRecord = findViewById(R.id.btnRecord);
 
         exercise = getIntent().getStringExtra("exercise");
@@ -64,9 +77,35 @@ public class MainActivity extends AppCompatActivity {
         tvExercise.setText(exercise);
         overlayView.setExercise(exercise);
 
+        PoseDetectorOptions options =
+                new PoseDetectorOptions.Builder()
+                        .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
+                        .build();
+
+        poseDetector = PoseDetection.getClient(options);
+
         overlayView.setAngleListener((angle, status) -> {
+
             tvAngle.setText("Angle: " + (int) angle);
             tvStatus.setText(status);
+
+            if (!isRecording) return;
+
+            angleSum += angle;
+            angleFrames++;
+
+            if (angle < minAngle) {
+                minAngle = angle;
+            }
+
+            if (angle < 90 && !wasDown) {
+                wasDown = true;
+            }
+
+            if (angle > 150 && wasDown) {
+                reps++;
+                wasDown = false;
+            }
 
             if (status.equals("GOOD")) {
                 tvStatus.setTextColor(0xFF00FF00);
@@ -87,12 +126,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        PoseDetectorOptions options = new PoseDetectorOptions.Builder()
-                .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
-                .build();
-
-        poseDetector = PoseDetection.getClient(options);
-
         ActivityCompat.requestPermissions(
                 this,
                 new String[]{
@@ -109,15 +142,20 @@ public class MainActivity extends AppCompatActivity {
                 ProcessCameraProvider.getInstance(this);
 
         future.addListener(() -> {
+
             try {
+
                 ProcessCameraProvider provider = future.get();
 
                 Preview preview = new Preview.Builder().build();
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
-                ImageAnalysis analysis = new ImageAnalysis.Builder()
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .build();
+                ImageAnalysis analysis =
+                        new ImageAnalysis.Builder()
+                                .setBackpressureStrategy(
+                                        ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
+                                )
+                                .build();
 
                 analysis.setAnalyzer(
                         ContextCompat.getMainExecutor(this),
@@ -130,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
                 CameraSelector selector = CameraSelector.DEFAULT_BACK_CAMERA;
 
                 provider.unbindAll();
+
                 provider.bindToLifecycle(
                         this,
                         selector,
@@ -153,10 +192,11 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        InputImage inputImage = InputImage.fromMediaImage(
-                image,
-                proxy.getImageInfo().getRotationDegrees()
-        );
+        InputImage inputImage =
+                InputImage.fromMediaImage(
+                        image,
+                        proxy.getImageInfo().getRotationDegrees()
+                );
 
         poseDetector.process(inputImage)
                 .addOnSuccessListener(pose -> {
@@ -168,10 +208,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void startRecording() {
 
+        reps = 0;
+        wasDown = false;
+        minAngle = 180;
+        angleSum = 0;
+        angleFrames = 0;
+
         if (videoCapture == null) return;
 
         ContentValues values = new ContentValues();
-        values.put(MediaStore.MediaColumns.DISPLAY_NAME, "video_" + System.currentTimeMillis());
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME,
+                "video_" + System.currentTimeMillis());
         values.put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4");
 
         MediaStoreOutputOptions options =
@@ -200,17 +247,55 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void stopRecording() {
+
         if (recording != null) {
             recording.stop();
             recording = null;
         }
+
+        double avgAngle = 0;
+        if (angleFrames > 0) {
+            avgAngle = angleSum / angleFrames;
+        }
+
+        StringBuilder tips = new StringBuilder();
+
+        if (minAngle > 110) {
+            tips.append("• Делай движение глубже\n");
+        }
+
+        if (avgAngle > 120) {
+            tips.append("• Замедли темп выполнения\n");
+        }
+
+        if (reps < 5) {
+            tips.append("• Улучши контроль и амплитуду\n");
+        }
+
+        if (minAngle < 90 && reps >= 8) {
+            tips.append("• Отличная техника!\n");
+        }
+
+        if (tips.length() == 0) {
+            tips.append("• Стабильное выполнение, можно увеличивать нагрузку\n");
+        }
+
+        Intent intent = new Intent(this, ResultActivity.class);
+
+        intent.putExtra("reps", reps);
+        intent.putExtra("minAngle", minAngle);
+        intent.putExtra("avgAngle", avgAngle);
+        intent.putExtra("recommendation", tips.toString());
+
+        startActivity(intent);
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-
+    public void onRequestPermissionsResult(
+            int requestCode,
+            @NonNull String[] permissions,
+            @NonNull int[] grantResults
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == REQUEST_CODE &&

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_primary"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/results"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"/>
+
+    <TextView
+        android:id="@+id/tvReps"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/reps"
+        android:textSize="20sp"
+        android:textColor="@color/text_primary"
+        android:layout_marginTop="16dp"/>
+
+    <TextView
+        android:id="@+id/tvMinAngle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/min_angle"
+        android:textSize="18sp"
+        android:textColor="@color/text_primary"
+        android:layout_marginTop="8dp"/>
+
+    <TextView
+        android:id="@+id/tvAvgAngle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/avg_angle"
+        android:textSize="18sp"
+        android:textColor="@color/text_primary"
+        android:layout_marginTop="8dp"/>
+
+    <TextView
+        android:id="@+id/tvAdvice"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/advice"
+        android:textSize="16sp"
+        android:textColor="@color/text_secondary"
+        android:layout_marginTop="16dp"/>
+
+</LinearLayout>
