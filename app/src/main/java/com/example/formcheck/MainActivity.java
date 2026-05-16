@@ -28,6 +28,10 @@ import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions;
 
 import java.util.concurrent.ExecutionException;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE = 100;
@@ -94,9 +98,7 @@ public class MainActivity extends AppCompatActivity {
             angleSum += angle;
             angleFrames++;
 
-            if (angle < minAngle) {
-                minAngle = angle;
-            }
+            if (angle < minAngle) minAngle = angle;
 
             if (angle < 90 && !wasDown) {
                 wasDown = true;
@@ -126,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // сразу запрашиваем камеру
         ActivityCompat.requestPermissions(
                 this,
                 new String[]{
@@ -144,7 +147,6 @@ public class MainActivity extends AppCompatActivity {
         future.addListener(() -> {
 
             try {
-
                 ProcessCameraProvider provider = future.get();
 
                 Preview preview = new Preview.Builder().build();
@@ -177,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
                         videoCapture
                 );
 
-            } catch (ExecutionException | InterruptedException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
 
@@ -253,32 +255,37 @@ public class MainActivity extends AppCompatActivity {
             recording = null;
         }
 
-        double avgAngle = 0;
-        if (angleFrames > 0) {
-            avgAngle = angleSum / angleFrames;
-        }
+        double avgAngle = angleFrames > 0 ? angleSum / angleFrames : 0;
 
         StringBuilder tips = new StringBuilder();
 
-        if (minAngle > 110) {
-            tips.append("• Делай движение глубже\n");
-        }
-
-        if (avgAngle > 120) {
-            tips.append("• Замедли темп выполнения\n");
-        }
-
-        if (reps < 5) {
-            tips.append("• Улучши контроль и амплитуду\n");
-        }
-
-        if (minAngle < 90 && reps >= 8) {
-            tips.append("• Отличная техника!\n");
-        }
+        if (minAngle > 110) tips.append("• Делай движение глубже\n");
+        if (avgAngle > 120) tips.append("• Замедли темп выполнения\n");
+        if (reps < 5) tips.append("• Улучши контроль и амплитуду\n");
+        if (minAngle < 90 && reps >= 8) tips.append("• Отличная техника!\n");
 
         if (tips.length() == 0) {
             tips.append("• Стабильное выполнение, можно увеличивать нагрузку\n");
         }
+
+        WorkoutRequest req = new WorkoutRequest(
+                exercise,
+                reps,
+                minAngle,
+                avgAngle
+        );
+
+        ApiClient.getApi().sendWorkout(req).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                Toast.makeText(MainActivity.this, "Sent to server", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Toast.makeText(MainActivity.this, "Server error", Toast.LENGTH_SHORT).show();
+            }
+        });
 
         Intent intent = new Intent(this, ResultActivity.class);
 
