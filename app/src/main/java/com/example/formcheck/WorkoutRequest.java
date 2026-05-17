@@ -1,7 +1,6 @@
 package com.example.formcheck;
 
 public class WorkoutRequest {
-
     public String exercise;
     public int reps;
     public double minAngle;

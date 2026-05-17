@@ -11,7 +11,7 @@ public class ApiClient {
 
         if (retrofit == null) {
             retrofit = new Retrofit.Builder()
-                    .baseUrl("http://192.168.1.81:8080/") // 👈 СЮДА IP ТВОЕГО ПК
+                    .baseUrl("http://62.217.176.225:8080/")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
         }
